@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Expenses - Budget Tracker{% endblock %}
+
+{% block content %}
+<div class="expenses-page">
+    <div class="page-header">
+        <h1>Expense Tracking</h1>
+        <a href="{{ url_for('add_expense') }}" class="btn btn-primary">+ Add Expense</a>
+    </div>
+
+    <!-- Period and Category Selection -->
+    <div class="filters">
+        <div class="period-selector">
+            <div class="period-buttons">
+                <a href="{{ url_for('expense_list', period='week', category=selected_category, date=selected_date) }}" 
+                   class="btn {{ 'active' if period == 'week' else 'outline' }}">Weekly</a>
+                <a href="{{ url_for('expense_list', period='month', category=selected_category, date=selected_date) }}" 
+                   class="btn {{ 'active' if period == 'month' else 'outline' }}">Monthly</a>
+                <a href="{{ url_for('expense_list', period='year', category=selected_category, date=selected_date) }}" 
+                   class="btn {{ 'active' if period == 'year' else 'outline' }}">Yearly</a>
+            </div>
+            
+            <div class="date-navigation">
+                <button class="btn outline" onclick="navigateDate(-1)">← Previous</button>
+                <span class="current-period">
+                    {{ start_date.strftime('%m/%d/%Y') }} - {{ end_date.strftime('%m/%d/%Y') }}
+                </span>
+                <button class="btn outline" onclick="navigateDate(1)">Next →</button>
+            </div>
+        </div>
+
+        <div class="category-filter">
+            <select class="form-select" onchange="filterByCategory(this.value)">
+                <option value="all" {{ 'selected' if selected_category == 'all' else '' }}>All Categories</option>
+                <option value="food" {{ 'selected' if selected_category == 'food' else '' }}>Food</option>
+                <option value="hygiene" {{ 'selected' if selected_category == 'hygiene' else '' }}>Hygiene</option>
+                <option value="transportation" {{ 'selected' if selected_category == 'transportation' else '' }}>Transportation</option>
+                <option value="utilities" {{ 'selected' if selected_category == 'utilities' else '' }}>Utilities</option>
+                <option value="entertainment" {{ 'selected' if selected_category == 'entertainment' else '' }}>Entertainment</option>
+                <option value="healthcare" {{ 'selected' if selected_category == 'healthcare' else '' }}>Healthcare</option>
+                <option value="clothing" {{ 'selected' if selected_category == 'clothing' else '' }}>Clothing</option>
+                <option value="other" {{ 'selected' if selected_category == 'other' else '' }}>Other</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Expense Summary -->
+    <div class="expense-summary">
+        <div class="summary-card">
+            <h3>Total {{ period.title() }} Expenses</h3>
+            <div class="total-amount expense">${{ "%.2f"|format(total_expenses) }}</div>
+        </div>
+        
+        <div class="category-breakdown">
+            <h3>Expenses by Category</h3>
+            <div class="category-chart">
+                <canvas id="categoryChart" width="300" height="300"></canvas>
+            </div>
+            <div class="category-legend">
+                {% for category_total in category_totals %}
+                <div class="legend-item">
+                    <span class="legend-color" style="background-color: {{ loop.index0 | category_color }}"></span>
+                    <span class="legend-label">{{ category_total.category.title() }}</span>
+                    <span class="legend-amount">${{ "%.2f"|format(category_total.total) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense List -->
+    <div class="expense-list">
+        <h2>{{ period.title() }} Expenses {{ "(" + selected_category.title() + ")" if selected_category != 'all' else "" }}</h2>
+        
+        {% if expenses %}
+        <div class="transaction-table">
+            <div class="table-header">
+                <span>Date</span>
+                <span>Description</span>
+                <span>Category</span>
+                <span>Amount</span>
+                <span>Type</span>
+            </div>
+            
+            {% for expense in expenses %}
+            <div class="table-row">
+                <span class="date">{{ expense.date.strftime('%m/%d/%Y') }}</span>
+                <span class="description">{{ expense.description }}</span>
+                <span class="category">{{ expense.category.title() }}</span>
+                <span class="amount expense">-${{ "%.2f"|format(expense.amount) }}</span>
+                <span class="type">
+                    {% if expense.is_recurring %}
+                        🔄 {{ expense.recurring_frequency.title() }}
+                    {% else %}
+                        One-time
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No expenses found for this period.</p>
+            <a href="{{ url_for('add_expense') }}" class="btn btn-primary">Add Your First Expense</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function navigateDate(direction) {
+    const currentDate = new Date('{{ selected_date }}');
+    let newDate;
+    
+    if ('{{ period }}' === 'week') {
+        newDate = new Date(currentDate.getTime() + (direction * 7 * 24 * 60 * 60 * 1000));
+    } else if ('{{ period }}' === 'month') {
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, currentDate.getDate());
+    } else {
+        newDate = new Date(currentDate.getFullYear() + direction, currentDate.getMonth(), currentDate.getDate());
+    }
+    
+    const dateStr = newDate.toISOString().split('T')[0];
+    window.location.href = `{{ url_for('expense_list') }}?period={{ period }}&category={{ selected_category }}&date=${dateStr}`;
+}
+
+function filterByCategory(category) {
+    window.location.href = `{{ url_for('expense_list') }}?period={{ period }}&category=${category}&date={{ selected_date }}`;
+}
+
+// Category colors
+const categoryColors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+    '#9966FF', '#FF9F40', '#C9CBCF', '#4BC0C0'
+];
+
+document.addEventListener('DOMContentLoaded', function() {
+    drawCategoryChart();
+});
+
+function drawCategoryChart() {
+    const canvas = document.getElementById('categoryChart');
+    const ctx = canvas.getContext('2d');
+    
+    const categoryData = [
+        {% for category_total in category_totals %}
+        { category: '{{ category_total.category }}', amount: {{ category_total.total }} },
+        {% endfor %}
+    ];
+    
+    if (categoryData.length === 0) return;
+    
+    const total = categoryData.reduce((sum, item) => sum + item.amount, 0);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(canvas.width, canvas.height) / 2 - 20;
+    
+    let currentAngle = -Math.PI / 2;
+    
+    categoryData.forEach((item, index) => {
+        const sliceAngle = (item.amount / total) * 2 * Math.PI;
+        
+        // Draw slice
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
+        ctx.closePath();
+        ctx.fillStyle = categoryColors[index % categoryColors.length];
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        currentAngle += sliceAngle;
+    });
+}
+</script>
+
+<style>
+.category-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+</style>
+{% endblock %}

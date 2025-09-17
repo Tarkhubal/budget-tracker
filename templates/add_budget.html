@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Add Budget - Budget Tracker{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="page-header">
+        <h1>Add Budget</h1>
+        <a href="{{ url_for('budget_list') }}" class="btn outline">← Back to Budgets</a>
+    </div>
+
+    <div class="budget-info">
+        <div class="info-card">
+            <h3>🎯 About Adaptive Budgeting</h3>
+            <p>Your budgets will automatically adjust based on your available income after fixed expenses. Set a base amount and priority level:</p>
+            <ul>
+                <li><strong>Priority 1-2:</strong> Essential categories (food, utilities) - get more allocation</li>
+                <li><strong>Priority 3:</strong> Important but flexible categories</li>
+                <li><strong>Priority 4-5:</strong> Nice-to-have categories - get less allocation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="form-container">
+        <form method="POST" class="form">
+            
+            <div class="form-group">
+                {{ form.category.label(class="form-label") }}
+                {{ form.category(class="form-select") }}
+                {% for error in form.category.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+                <small class="form-help">Choose the category you want to budget for</small>
+            </div>
+
+            <div class="form-group">
+                {{ form.allocated_amount.label(class="form-label") }}
+                {{ form.allocated_amount(class="form-input", placeholder="0.00") }}
+                {% for error in form.allocated_amount.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+                <small class="form-help">Base budget amount (will be adjusted based on available income)</small>
+            </div>
+
+            <div class="form-group">
+                {{ form.priority.label(class="form-label") }}
+                {{ form.priority(class="form-input", min="1", max="5") }}
+                {% for error in form.priority.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+                <small class="form-help">1 = highest priority, 5 = lowest priority</small>
+            </div>
+
+            <div class="priority-guide">
+                <h4>Priority Guide:</h4>
+                <div class="priority-examples">
+                    <div class="priority-item">
+                        <span class="priority-badge priority-1">1</span>
+                        <span>Essential: Food, Rent, Utilities</span>
+                    </div>
+                    <div class="priority-item">
+                        <span class="priority-badge priority-2">2</span>
+                        <span>Important: Healthcare, Transportation</span>
+                    </div>
+                    <div class="priority-item">
+                        <span class="priority-badge priority-3">3</span>
+                        <span>Moderate: Clothing, Personal Care</span>
+                    </div>
+                    <div class="priority-item">
+                        <span class="priority-badge priority-4">4</span>
+                        <span>Low: Entertainment, Hobbies</span>
+                    </div>
+                    <div class="priority-item">
+                        <span class="priority-badge priority-5">5</span>
+                        <span>Luxury: Dining out, Shopping</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create Budget</button>
+                <a href="{{ url_for('budget_list') }}" class="btn outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

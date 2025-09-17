@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Add Income - Budget Tracker{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="page-header">
+        <h1>Add Income</h1>
+        <a href="{{ url_for('income_list') }}" class="btn outline">← Back to Income</a>
+    </div>
+
+    <div class="form-container">
+        <form method="POST" class="form">
+            
+            <div class="form-group">
+                {{ form.amount.label(class="form-label") }}
+                {{ form.amount(class="form-input", placeholder="0.00") }}
+                {% for error in form.amount.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.description.label(class="form-label") }}
+                {{ form.description(class="form-input", placeholder="e.g., Salary, Freelance work, etc.") }}
+                {% for error in form.description.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.date.label(class="form-label") }}
+                {{ form.date(class="form-input") }}
+                {% for error in form.date.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-group checkbox-group">
+                {{ form.is_recurring(class="form-checkbox", onchange="toggleRecurring()") }}
+                {{ form.is_recurring.label(class="checkbox-label") }}
+            </div>
+
+            <div class="form-group" id="recurring-frequency" style="display: none;">
+                {{ form.recurring_frequency.label(class="form-label") }}
+                {{ form.recurring_frequency(class="form-select") }}
+                {% for error in form.recurring_frequency.errors %}
+                    <span class="form-error">{{ error }}</span>
+                {% endfor %}
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Add Income</button>
+                <a href="{{ url_for('income_list') }}" class="btn outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleRecurring() {
+    const checkbox = document.querySelector('input[name="is_recurring"]');
+    const frequencyDiv = document.getElementById('recurring-frequency');
+    
+    if (checkbox.checked) {
+        frequencyDiv.style.display = 'block';
+    } else {
+        frequencyDiv.style.display = 'none';
+        document.querySelector('select[name="recurring_frequency"]').value = '';
+    }
+}
+
+// Initialize the form
+document.addEventListener('DOMContentLoaded', function() {
+    toggleRecurring();
+});
+</script>
+{% endblock %}

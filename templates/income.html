@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Income - Budget Tracker{% endblock %}
+
+{% block content %}
+<div class="income-page">
+    <div class="page-header">
+        <h1>Income Tracking</h1>
+        <a href="{{ url_for('add_income') }}" class="btn btn-primary">+ Add Income</a>
+    </div>
+
+    <!-- Period Selection -->
+    <div class="period-selector">
+        <div class="period-buttons">
+            <a href="{{ url_for('income_list', period='week', date=selected_date) }}" 
+               class="btn {{ 'active' if period == 'week' else 'outline' }}">Weekly</a>
+            <a href="{{ url_for('income_list', period='month', date=selected_date) }}" 
+               class="btn {{ 'active' if period == 'month' else 'outline' }}">Monthly</a>
+            <a href="{{ url_for('income_list', period='year', date=selected_date) }}" 
+               class="btn {{ 'active' if period == 'year' else 'outline' }}">Yearly</a>
+        </div>
+        
+        <div class="date-navigation">
+            <button class="btn outline" onclick="navigateDate(-1)">← Previous</button>
+            <span class="current-period">
+                {{ start_date.strftime('%m/%d/%Y') }} - {{ end_date.strftime('%m/%d/%Y') }}
+            </span>
+            <button class="btn outline" onclick="navigateDate(1)">Next →</button>
+        </div>
+    </div>
+
+    <!-- Income Summary -->
+    <div class="income-summary">
+        <div class="summary-card">
+            <h3>Total {{ period.title() }} Income</h3>
+            <div class="total-amount">${{ "%.2f"|format(total_income) }}</div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="incomeChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Income List -->
+    <div class="income-list">
+        <h2>{{ period.title() }} Income Records</h2>
+        
+        {% if income_records %}
+        <div class="transaction-table">
+            <div class="table-header">
+                <span>Date</span>
+                <span>Description</span>
+                <span>Amount</span>
+                <span>Type</span>
+            </div>
+            
+            {% for income in income_records %}
+            <div class="table-row">
+                <span class="date">{{ income.date.strftime('%m/%d/%Y') }}</span>
+                <span class="description">{{ income.description }}</span>
+                <span class="amount income">+${{ "%.2f"|format(income.amount) }}</span>
+                <span class="type">
+                    {% if income.is_recurring %}
+                        🔄 {{ income.recurring_frequency.title() }}
+                    {% else %}
+                        One-time
+                    {% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No income records found for this period.</p>
+            <a href="{{ url_for('add_income') }}" class="btn btn-primary">Add Your First Income</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function navigateDate(direction) {
+    const currentDate = new Date('{{ selected_date }}');
+    let newDate;
+    
+    if ('{{ period }}' === 'week') {
+        newDate = new Date(currentDate.getTime() + (direction * 7 * 24 * 60 * 60 * 1000));
+    } else if ('{{ period }}' === 'month') {
+        newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, currentDate.getDate());
+    } else {
+        newDate = new Date(currentDate.getFullYear() + direction, currentDate.getMonth(), currentDate.getDate());
+    }
+    
+    const dateStr = newDate.toISOString().split('T')[0];
+    window.location.href = `{{ url_for('income_list') }}?period={{ period }}&date=${dateStr}`;
+}
+
+// Load income chart
+document.addEventListener('DOMContentLoaded', function() {
+    loadIncomeChart();
+});
+
+function loadIncomeChart() {
+    fetch(`/api/income_chart_data?period={{ period }}`)
+        .then(response => response.json())
+        .then(data => {
+            drawIncomeChart(data);
+        })
+        .catch(error => {
+            console.error('Error loading chart data:', error);
+        });
+}
+
+function drawIncomeChart(data) {
+    const canvas = document.getElementById('incomeChart');
+    const ctx = canvas.getContext('2d');
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (data.length === 0) return;
+    
+    const padding = 40;
+    const chartWidth = canvas.width - 2 * padding;
+    const chartHeight = canvas.height - 2 * padding;
+    
+    // Find max value for scaling
+    const maxAmount = Math.max(...data.map(d => d.amount));
+    const scale = maxAmount > 0 ? chartHeight / maxAmount : 1;
+    
+    // Draw axes
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, canvas.height - padding);
+    ctx.lineTo(canvas.width - padding, canvas.height - padding);
+    ctx.stroke();
+    
+    // Draw bars
+    const barWidth = chartWidth / data.length * 0.8;
+    const barSpacing = chartWidth / data.length * 0.2;
+    
+    data.forEach((item, index) => {
+        const x = padding + index * (barWidth + barSpacing) + barSpacing / 2;
+        const barHeight = item.amount * scale;
+        const y = canvas.height - padding - barHeight;
+        
+        // Draw bar
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(x, y, barWidth, barHeight);
+        
+        // Draw amount label
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`$${item.amount.toFixed(0)}`, x + barWidth / 2, y - 5);
+        
+        // Draw period label
+        ctx.fillText(item.period, x + barWidth / 2, canvas.height - padding + 15);
+    });
+}
+</script>
+{% endblock %}
