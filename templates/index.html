@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Budget Tracker{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Dashboard</h1>
+    
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+        <div class="card income-card">
+            <div class="card-header">
+                <h3>Monthly Income</h3>
+                <span class="card-icon">📈</span>
+            </div>
+            <div class="card-amount">${{ "%.2f"|format(monthly_income) }}</div>
+        </div>
+        
+        <div class="card expense-card">
+            <div class="card-header">
+                <h3>Monthly Expenses</h3>
+                <span class="card-icon">📉</span>
+            </div>
+            <div class="card-amount">${{ "%.2f"|format(monthly_expenses) }}</div>
+        </div>
+        
+        <div class="card balance-card {{ 'positive' if balance >= 0 else 'negative' }}">
+            <div class="card-header">
+                <h3>Net Balance</h3>
+                <span class="card-icon">💳</span>
+            </div>
+            <div class="card-amount">${{ "%.2f"|format(balance) }}</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <h2>Quick Actions</h2>
+        <div class="action-buttons">
+            <a href="{{ url_for('add_income') }}" class="btn btn-primary">+ Add Income</a>
+            <a href="{{ url_for('add_expense') }}" class="btn btn-secondary">+ Add Expense</a>
+            <a href="{{ url_for('add_budget') }}" class="btn btn-tertiary">+ Add Budget</a>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Budget Status -->
+        <div class="dashboard-section">
+            <h2>Budget Status</h2>
+            <div class="budget-overview">
+                {% for budget in budget_status %}
+                <div class="budget-item">
+                    <div class="budget-header">
+                        <span class="budget-category">{{ budget.category.title() }}</span>
+                        <span class="budget-amount">${{ "%.2f"|format(budget.spent) }} / ${{ "%.2f"|format(budget.allocated) }}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill {{ 'over-budget' if budget.percentage > 100 else '' }}" 
+                             style="width: {{ min(budget.percentage, 100) }}%"></div>
+                    </div>
+                    <div class="budget-details">
+                        <span class="remaining {{ 'negative' if budget.remaining < 0 else 'positive' }}">
+                            ${{ "%.2f"|format(budget.remaining) }} remaining
+                        </span>
+                        <span class="percentage">{{ "%.1f"|format(budget.percentage) }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="dashboard-section">
+            <h2>Recent Income</h2>
+            <div class="recent-transactions">
+                {% for income in recent_income %}
+                <div class="transaction-item income">
+                    <div class="transaction-info">
+                        <span class="transaction-description">{{ income.description }}</span>
+                        <span class="transaction-date">{{ income.date.strftime('%m/%d/%Y') }}</span>
+                    </div>
+                    <span class="transaction-amount">+${{ "%.2f"|format(income.amount) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <h2>Recent Expenses</h2>
+            <div class="recent-transactions">
+                {% for expense in recent_expenses %}
+                <div class="transaction-item expense">
+                    <div class="transaction-info">
+                        <span class="transaction-description">{{ expense.description }}</span>
+                        <span class="transaction-date">{{ expense.date.strftime('%m/%d/%Y') }}</span>
+                        <span class="transaction-category">{{ expense.category }}</span>
+                    </div>
+                    <span class="transaction-amount">-${{ "%.2f"|format(expense.amount) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

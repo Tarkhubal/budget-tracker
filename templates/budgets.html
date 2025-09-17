@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Budgets - Budget Tracker{% endblock %}
+
+{% block content %}
+<div class="budgets-page">
+    <div class="page-header">
+        <h1>Budget Management</h1>
+        <a href="{{ url_for('add_budget') }}" class="btn btn-primary">+ Add Budget</a>
+    </div>
+
+    <div class="budget-info">
+        <div class="info-card">
+            <h3>🎯 Adaptive Budgeting</h3>
+            <p>Your budgets automatically adjust based on your income and fixed expenses. Higher priority categories get more allocation when funds are available.</p>
+        </div>
+    </div>
+
+    <div class="budget-overview">
+        {% if budget_data %}
+        <div class="budget-grid">
+            {% for budget in budget_data %}
+            <div class="budget-card {{ 'over-budget' if budget.percentage > 100 else 'on-track' if budget.percentage > 80 else 'good' }}">
+                <div class="budget-header">
+                    <div class="budget-category">
+                        <span class="category-icon">{{ budget.category | category_icon }}</span>
+                        <h3>{{ budget.category.title() }}</h3>
+                    </div>
+                    <div class="priority-badge priority-{{ budget.priority }}">
+                        Priority {{ budget.priority }}
+                    </div>
+                </div>
+
+                <div class="budget-amounts">
+                    <div class="amount-row">
+                        <span class="label">Original Budget:</span>
+                        <span class="amount">${{ "%.2f"|format(budget.original_allocated) }}</span>
+                    </div>
+                    {% if budget.allocated != budget.original_allocated %}
+                    <div class="amount-row adaptive">
+                        <span class="label">Adapted Budget:</span>
+                        <span class="amount">${{ "%.2f"|format(budget.allocated) }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="amount-row">
+                        <span class="label">Spent:</span>
+                        <span class="amount spent">${{ "%.2f"|format(budget.spent) }}</span>
+                    </div>
+                    <div class="amount-row">
+                        <span class="label">Remaining:</span>
+                        <span class="amount {{ 'negative' if budget.remaining < 0 else 'positive' }}">
+                            ${{ "%.2f"|format(budget.remaining) }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ min(budget.percentage, 100) }}%"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span class="percentage">{{ "%.1f"|format(budget.percentage) }}% used</span>
+                        {% if budget.percentage > 100 %}
+                        <span class="over-budget-text">Over budget by ${{ "%.2f"|format(budget.spent - budget.allocated) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="budget-status">
+                    {% if budget.percentage <= 50 %}
+                        <span class="status-good">✅ On track</span>
+                    {% elif budget.percentage <= 80 %}
+                        <span class="status-warning">⚠️ Monitor spending</span>
+                    {% elif budget.percentage <= 100 %}
+                        <span class="status-danger">🔴 Close to limit</span>
+                    {% else %}
+                        <span class="status-over">❌ Over budget</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Budget Summary -->
+        <div class="budget-summary">
+            <h2>Monthly Budget Summary</h2>
+            <div class="summary-stats">
+                <div class="stat">
+                    <span class="stat-label">Total Budgeted:</span>
+                    <span class="stat-value">${{ "%.2f"|format(budget_data | sum(attribute='allocated')) }}</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Total Spent:</span>
+                    <span class="stat-value">${{ "%.2f"|format(budget_data | sum(attribute='spent')) }}</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Total Remaining:</span>
+                    <span class="stat-value {{ 'negative' if (budget_data | sum(attribute='remaining')) < 0 else 'positive' }}">
+                        ${{ "%.2f"|format(budget_data | sum(attribute='remaining')) }}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="budget-tips">
+                <h3>💡 Budget Tips</h3>
+                <ul>
+                    {% set over_budget = budget_data | selectattr('percentage', '>', 100) | list %}
+                    {% set close_to_limit = budget_data | selectattr('percentage', '>', 80) | selectattr('percentage', '<=', 100) | list %}
+                    
+                    {% if over_budget %}
+                    <li class="tip-warning">You're over budget in {{ over_budget | length }} categories. Consider reducing spending or reallocating funds.</li>
+                    {% endif %}
+                    
+                    {% if close_to_limit %}
+                    <li class="tip-caution">{{ close_to_limit | length }} categories are close to their limits. Monitor spending carefully.</li>
+                    {% endif %}
+                    
+                    {% if not over_budget and not close_to_limit %}
+                    <li class="tip-good">Great job! You're staying within your budget limits.</li>
+                    {% endif %}
+                    
+                    <li>Your budgets automatically adjust based on your income and fixed expenses.</li>
+                    <li>Higher priority categories (1-2) get more allocation when extra funds are available.</li>
+                </ul>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <h2>No Budgets Set</h2>
+            <p>Create your first budget to start tracking your spending and take control of your finances.</p>
+            <a href="{{ url_for('add_budget') }}" class="btn btn-primary">Create Your First Budget</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
