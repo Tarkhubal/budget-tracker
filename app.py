@@ -193,16 +193,45 @@ def index():
     current_date = datetime.today().date()
     month_start, month_end = get_date_range('month', current_date)
     
-    # Calculate totals
+    # Calculate totals including recurring income
     monthly_income = db.session.query(db.func.sum(Income.amount)).filter(
         Income.date >= month_start,
         Income.date <= month_end
     ).scalar() or 0
     
+    # Add recurring monthly income
+    recurring_monthly_income = db.session.query(db.func.sum(Income.amount)).filter(
+        Income.is_recurring == True,
+        Income.recurring_frequency == 'monthly'
+    ).scalar() or 0
+    
+    # Add prorated yearly recurring income
+    recurring_yearly_income = db.session.query(db.func.sum(Income.amount)).filter(
+        Income.is_recurring == True,
+        Income.recurring_frequency == 'yearly'
+    ).scalar() or 0
+    
+    total_monthly_income = monthly_income + recurring_monthly_income + (recurring_yearly_income / 12 if recurring_yearly_income else 0)
+    
+    # Calculate monthly expenses including recurring
     monthly_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
         Expense.date >= month_start,
         Expense.date <= month_end
     ).scalar() or 0
+    
+    # Add recurring monthly expenses
+    recurring_monthly_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.is_recurring == True,
+        Expense.recurring_frequency == 'monthly'
+    ).scalar() or 0
+    
+    # Add prorated yearly recurring expenses
+    recurring_yearly_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.is_recurring == True,
+        Expense.recurring_frequency == 'yearly'
+    ).scalar() or 0
+    
+    total_monthly_expenses = monthly_expenses + recurring_monthly_expenses + (recurring_yearly_expenses / 12 if recurring_yearly_expenses else 0)
     
     # Get recent transactions
     recent_income = Income.query.order_by(Income.date.desc()).limit(5).all()
@@ -232,9 +261,9 @@ def index():
         })
     
     return render_template('index.html', 
-                         monthly_income=monthly_income,
-                         monthly_expenses=monthly_expenses,
-                         balance=monthly_income - monthly_expenses,
+                         monthly_income=total_monthly_income,
+                         monthly_expenses=total_monthly_expenses,
+                         balance=total_monthly_income - total_monthly_expenses,
                          recent_income=recent_income,
                          recent_expenses=recent_expenses,
                          budget_status=budget_status)
@@ -481,5 +510,44 @@ def income_chart_data():
 
 if __name__ == '__main__':
     with app.app_context():
+        # Create database tables
         db.create_all()
+        print("Database tables created successfully!")
+        
+        # Add some sample data if tables are empty
+        if Income.query.first() is None:
+            print("Adding sample data...")
+            
+            # Add sample income
+            sample_income = Income(
+                amount=5000.0,
+                description="Monthly Salary",
+                date=datetime.today().date(),
+                is_recurring=True,
+                recurring_frequency="monthly"
+            )
+            db.session.add(sample_income)
+            
+            # Add sample expense
+            sample_expense = Expense(
+                amount=150.0,
+                description="Groceries",
+                category="food",
+                date=datetime.today().date(),
+                is_recurring=False
+            )
+            db.session.add(sample_expense)
+            
+            # Add sample budget
+            sample_budget = Budget(
+                category="food",
+                allocated_amount=400.0,
+                priority=1,
+                is_adaptive=True
+            )
+            db.session.add(sample_budget)
+            
+            db.session.commit()
+            print("Sample data added successfully!")
+    
     app.run(debug=True)
